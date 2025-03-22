@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -24,8 +23,7 @@ const employeeSchema = z.object({
   position: z.string().min(2, "Position must be at least 2 characters"),
   hoursPerWeek: z.coerce
     .number()
-    .min(1, "Hours must be at least 1")
-    .max(168, "Hours cannot exceed 168 (hours in a week)"),
+    .min(1, "Hours must be at least 1"),
   weeksPerPeriod: z.coerce
     .number()
     .min(1, "Weeks must be at least 1")
@@ -72,7 +70,6 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
 
   const handleSubmit = (data: EmployeeFormData) => {
     try {
-      // Ensure all required fields are included and properly typed
       const employeeData: Omit<Employee, "id"> = {
         name: data.name,
         email: data.email,
@@ -158,7 +155,7 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
                 <FormItem>
                   <FormLabel>Total Hours</FormLabel>
                   <FormControl>
-                    <Input type="number" min={1} max={168} {...field} />
+                    <Input type="number" min={1} {...field} />
                   </FormControl>
                   <FormDescription>
                     Target hours for period
