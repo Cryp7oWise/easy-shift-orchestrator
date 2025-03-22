@@ -172,6 +172,7 @@ const Schedule = () => {
                 shifts={shifts}
                 employees={employees}
                 onAutoSchedule={handleAutoSchedule}
+                onUseTemplates={handleUseTemplates}
               />
             </TabsContent>
           </Tabs>

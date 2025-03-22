@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,14 @@ interface AutoSchedulerProps {
   shifts: Shift[];
   employees: Employee[];
   onAutoSchedule: (assignedShifts: Shift[]) => void;
+  onUseTemplates: (templates: ShiftTemplate[]) => void;
 }
 
 export function AutoScheduler({
   shifts,
   employees,
   onAutoSchedule,
+  onUseTemplates,
 }: AutoSchedulerProps) {
   const [scheduling, setScheduling] = useState(false);
   const [schedulingMode, setSchedulingMode] = useState<"balanced" | "optimal">("balanced");
@@ -81,15 +82,12 @@ export function AutoScheduler({
   };
 
   const handleUseTemplates = (templates: ShiftTemplate[]) => {
-    // Implementation for using templates will be handled by the parent component
-    toast.success(`${templates.length} templates ready for scheduling`);
+    onUseTemplates(templates);
   };
 
-  // Check if any employees are scheduled for more hours than their limit
   const checkOverallocatedEmployees = (shifts: Shift[], employees: Employee[]): string[] => {
     const overallocated: string[] = [];
     
-    // Calculate total hours for each employee
     const employeeHours: Record<string, number> = {};
     
     for (const shift of shifts) {
@@ -104,12 +102,10 @@ export function AutoScheduler({
       employeeHours[shift.employeeId] += duration;
     }
     
-    // Check if any employee is over their limit
     for (const employee of employees) {
       const totalHours = employeeHours[employee.id] || 0;
       const weeklyLimit = employee.hoursPerWeek;
       
-      // Adjust limit based on weeks per period
       const adjustedLimit = weeklyLimit * employee.weeksPerPeriod;
       
       if (totalHours > adjustedLimit) {
