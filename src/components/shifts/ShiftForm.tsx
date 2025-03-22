@@ -233,8 +233,8 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
               <FormItem>
                 <FormLabel>Assign Employee (Optional)</FormLabel>
                 <Select
-                  value={field.value || ""}
-                  onValueChange={(value) => field.onChange(value || null)}
+                  value={field.value || "unassigned"}
+                  onValueChange={(value) => field.onChange(value === "unassigned" ? null : value)}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -242,7 +242,7 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {employees.map((employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.name} ({employee.position})
