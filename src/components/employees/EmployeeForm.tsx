@@ -29,6 +29,8 @@ const employeeSchema = z.object({
   color: z.string(),
 });
 
+type EmployeeFormData = z.infer<typeof employeeSchema>;
+
 interface EmployeeFormProps {
   employee?: Employee;
   onSubmit: (data: Omit<Employee, "id">) => void;
@@ -49,7 +51,7 @@ const COLORS = [
 export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps) {
   const [selectedColor, setSelectedColor] = useState(employee?.color || COLORS[0]);
 
-  const form = useForm<z.infer<typeof employeeSchema>>({
+  const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
     defaultValues: employee
       ? { ...employee }
@@ -62,9 +64,18 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
         },
   });
 
-  const handleSubmit = (data: z.infer<typeof employeeSchema>) => {
+  const handleSubmit = (data: EmployeeFormData) => {
     try {
-      onSubmit({ ...data, color: selectedColor });
+      // Ensure all required fields are included and properly typed
+      const employeeData: Omit<Employee, "id"> = {
+        name: data.name,
+        email: data.email,
+        position: data.position,
+        hoursPerWeek: data.hoursPerWeek,
+        color: selectedColor,
+      };
+      
+      onSubmit(employeeData);
       form.reset();
     } catch (error) {
       toast.error("Failed to save employee");
