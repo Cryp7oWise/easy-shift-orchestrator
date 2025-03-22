@@ -1,10 +1,10 @@
-
 export interface Employee {
   id: string;
   name: string;
   email: string;
   position: string;
   hoursPerWeek: number;
+  weeksPerPeriod: number;
   color: string;
 }
 
@@ -14,6 +14,15 @@ export interface Shift {
   startTime: Date;
   endTime: Date;
   position: string;
+}
+
+export interface ShiftTemplate {
+  id: string;
+  name: string;
+  startHour: string;
+  endHour: string;
+  position: string;
+  breakDurationMinutes: number;
 }
 
 export interface ScheduleDay {

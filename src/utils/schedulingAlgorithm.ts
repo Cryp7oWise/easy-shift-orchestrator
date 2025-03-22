@@ -1,6 +1,7 @@
 
-import { Employee, Shift } from "@/types";
-import { differenceInMinutes } from "date-fns";
+import { Employee, Shift, ShiftTemplate } from "@/types";
+import { differenceInMinutes, addDays, parseISO, format } from "date-fns";
+import { v4 as uuidv4 } from "uuid";
 
 // Calculate duration of a shift in hours
 const getShiftDuration = (shift: Shift): number => {
@@ -37,6 +38,18 @@ const calculateAssignedHours = (employee: Employee, allShifts: Shift[]): number 
     .reduce((total, shift) => total + getShiftDuration(shift), 0);
 };
 
+// Check if employee is overallocated
+const isOverallocated = (employee: Employee, shift: Shift, allShifts: Shift[]): boolean => {
+  const currentHours = calculateAssignedHours(employee, allShifts);
+  const shiftHours = getShiftDuration(shift);
+  const weeklyLimit = employee.hoursPerWeek;
+  
+  // Adjust limit based on weeks per period
+  const adjustedLimit = weeklyLimit * (employee.weeksPerPeriod || 1);
+  
+  return (currentHours + shiftHours) > adjustedLimit;
+};
+
 // Score an employee for a shift (higher is better)
 const scoreEmployeeForShift = (
   employee: Employee, 
@@ -54,25 +67,30 @@ const scoreEmployeeForShift = (
   const assignedHours = calculateAssignedHours(employee, allShifts);
   
   // Calculate how many hours the employee is above/below their target
-  const hoursDifference = employee.hoursPerWeek - assignedHours;
+  // Adjust the target based on weeks per period
+  const adjustedTarget = employee.hoursPerWeek * (employee.weeksPerPeriod || 1);
+  const hoursDifference = adjustedTarget - assignedHours;
   
   // Position match score (3 points if positions match exactly)
   const positionMatchScore = employee.position === shift.position ? 3 : 0;
   
   // Relative workload score (how much more/less this employee works compared to others)
   const avgHoursPerEmployee = allEmployees.reduce(
-    (sum, emp) => sum + calculateAssignedHours(emp, allShifts), 
+    (sum, emp) => sum + (calculateAssignedHours(emp, allShifts) / (emp.weeksPerPeriod || 1)), 
     0
   ) / allEmployees.length;
   
-  const relativeWorkloadScore = avgHoursPerEmployee - assignedHours;
+  const relativeWorkloadScore = avgHoursPerEmployee - (assignedHours / (employee.weeksPerPeriod || 1));
+  
+  // Overallocation penalty
+  const overallocationPenalty = isOverallocated(employee, shift, allShifts) ? -5 : 0;
   
   if (mode === "balanced") {
     // Prioritize balancing hours
-    return hoursDifference + (relativeWorkloadScore * 0.5) + positionMatchScore;
+    return hoursDifference + (relativeWorkloadScore * 0.5) + positionMatchScore + overallocationPenalty;
   } else {
     // Prioritize position matching
-    return positionMatchScore * 2 + hoursDifference + (relativeWorkloadScore * 0.2);
+    return positionMatchScore * 2 + hoursDifference + (relativeWorkloadScore * 0.2) + overallocationPenalty;
   }
 };
 
@@ -130,4 +148,55 @@ export const autoScheduleShifts = (
   }
   
   return workingShifts;
+};
+
+// Create shifts from templates for a date range
+export const createShiftsFromTemplates = (
+  templates: ShiftTemplate[],
+  startDate: Date,
+  endDate: Date,
+  skipWeekends: boolean = true
+): Shift[] => {
+  const shifts: Shift[] = [];
+  let currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
+    
+    // Skip weekends if specified
+    if (skipWeekends && (dayOfWeek === 0 || dayOfWeek === 6)) {
+      currentDate = addDays(currentDate, 1);
+      continue;
+    }
+    
+    // Create shifts for each template for this day
+    for (const template of templates) {
+      // Parse start and end times
+      const [startHour, startMinute] = template.startHour.split(":").map(Number);
+      const [endHour, endMinute] = template.endHour.split(":").map(Number);
+      
+      // Create shift start and end times
+      const shiftStart = new Date(currentDate);
+      shiftStart.setHours(startHour, startMinute, 0, 0);
+      
+      const shiftEnd = new Date(currentDate);
+      shiftEnd.setHours(endHour, endMinute, 0, 0);
+      
+      // Create the shift
+      const shift: Shift = {
+        id: uuidv4(),
+        employeeId: null,
+        startTime: shiftStart,
+        endTime: shiftEnd,
+        position: template.position,
+      };
+      
+      shifts.push(shift);
+    }
+    
+    // Move to the next day
+    currentDate = addDays(currentDate, 1);
+  }
+  
+  return shifts;
 };

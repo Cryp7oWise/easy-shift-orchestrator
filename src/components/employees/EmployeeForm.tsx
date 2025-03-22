@@ -26,6 +26,11 @@ const employeeSchema = z.object({
     .number()
     .min(1, "Hours must be at least 1")
     .max(168, "Hours cannot exceed 168 (hours in a week)"),
+  weeksPerPeriod: z.coerce
+    .number()
+    .min(1, "Weeks must be at least 1")
+    .max(52, "Weeks cannot exceed 52 (weeks in a year)")
+    .default(1),
   color: z.string(),
 });
 
@@ -60,6 +65,7 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
           email: "",
           position: "",
           hoursPerWeek: 40,
+          weeksPerPeriod: 1,
           color: COLORS[0],
         },
   });
@@ -72,6 +78,7 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
         email: data.email,
         position: data.position,
         hoursPerWeek: data.hoursPerWeek,
+        weeksPerPeriod: data.weeksPerPeriod,
         color: selectedColor,
       };
       
@@ -143,22 +150,41 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
             )}
           />
           
-          <FormField
-            control={form.control}
-            name="hoursPerWeek"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hours Per Week</FormLabel>
-                <FormControl>
-                  <Input type="number" min={1} max={168} {...field} />
-                </FormControl>
-                <FormDescription>
-                  Target number of hours per week for this employee
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="hoursPerWeek"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Hours Per Week</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} max={168} {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Target working hours
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="weeksPerPeriod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Weeks Per Period</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} max={52} {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Period length in weeks
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           
           <div>
             <FormLabel>Color</FormLabel>

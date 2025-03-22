@@ -8,8 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShiftForm } from "@/components/shifts/ShiftForm";
 import { ShiftCalendar } from "@/components/shifts/ShiftCalendar";
 import { AutoScheduler } from "@/components/shifts/AutoScheduler";
-import { Employee, Shift } from "@/types";
+import { CalendarHeader } from "@/components/shifts/CalendarHeader";
+import { Employee, Shift, ShiftTemplate } from "@/types";
 import { Plus } from "lucide-react";
+import { createShiftsFromTemplates } from "@/utils/schedulingAlgorithm";
+import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
 const Schedule = () => {
   const [employees] = useLocalStorage<Employee[]>("smartplan-employees", []);
@@ -17,6 +20,8 @@ const Schedule = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | undefined>(undefined);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<"week" | "month">("week");
 
   const handleAddShift = (date?: Date) => {
     setEditingShift(undefined);
@@ -69,6 +74,43 @@ const Schedule = () => {
     setShifts(updatedShifts);
   };
 
+  const handleUseTemplates = (templates: ShiftTemplate[]) => {
+    // Calculate date range (1 month from current date)
+    const startDate = new Date(currentDate);
+    const endDate = addMonths(currentDate, 1);
+    
+    // Create shifts from templates
+    const newShifts = createShiftsFromTemplates(templates, startDate, endDate);
+    
+    if (newShifts.length > 0) {
+      setShifts([...shifts, ...newShifts]);
+      toast.success(`Created ${newShifts.length} shifts from templates`);
+    } else {
+      toast.error("No shifts were created");
+    }
+  };
+
+  // Calendar navigation
+  const handlePrevious = () => {
+    if (calendarView === "week") {
+      setCurrentDate(subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(subMonths(currentDate, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (calendarView === "week") {
+      setCurrentDate(addWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(addMonths(currentDate, 1));
+    }
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
   return (
     <div className="py-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -104,9 +146,20 @@ const Schedule = () => {
             </TabsList>
             
             <TabsContent value="calendar" className="mt-0 space-y-4">
+              <CalendarHeader
+                currentDate={currentDate}
+                view={calendarView}
+                onPrev={handlePrevious}
+                onNext={handleNext}
+                onToday={handleToday}
+                onViewChange={setCalendarView}
+              />
+              
               <ShiftCalendar 
                 shifts={shifts}
                 employees={employees}
+                currentDate={currentDate}
+                view={calendarView}
                 onEditShift={handleEditShift}
                 onDeleteShift={handleDeleteShift}
                 onAddShift={handleAddShift}
