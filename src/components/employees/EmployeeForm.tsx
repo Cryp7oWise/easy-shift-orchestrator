@@ -156,12 +156,12 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
               name="hoursPerWeek"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hours Per Week</FormLabel>
+                  <FormLabel>Total Hours</FormLabel>
                   <FormControl>
                     <Input type="number" min={1} max={168} {...field} />
                   </FormControl>
                   <FormDescription>
-                    Target working hours
+                    Target hours for period
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

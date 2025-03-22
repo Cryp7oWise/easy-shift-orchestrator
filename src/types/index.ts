@@ -1,10 +1,11 @@
 
+
 export interface Employee {
   id: string;
   name: string;
   email: string;
   position: string;
-  hoursPerWeek: number;
+  hoursPerWeek: number; // Keeping the property name for compatibility
   weeksPerPeriod: number;
   color: string;
 }

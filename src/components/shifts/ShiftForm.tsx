@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { CalendarIcon, Clock, X } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Employee, Shift } from "@/types";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const shiftSchema = z.object({
   employeeId: z.string().nullable(),
@@ -170,10 +171,11 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
                 <FormItem>
                   <FormLabel>Start Time</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input className="pl-9" placeholder="09:00" {...field} />
-                    </div>
+                    <TimePicker 
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="09:00"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -187,10 +189,11 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
                 <FormItem>
                   <FormLabel>End Time</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input className="pl-9" placeholder="17:00" {...field} />
-                    </div>
+                    <TimePicker 
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="17:00"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

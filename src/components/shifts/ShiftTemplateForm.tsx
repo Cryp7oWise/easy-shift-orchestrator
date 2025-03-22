@@ -4,7 +4,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Clock, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShiftTemplate } from "@/types";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const shiftTemplateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -127,10 +128,11 @@ export function ShiftTemplateForm({
                 <FormItem>
                   <FormLabel>Start Time</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input className="pl-9" placeholder="09:00" {...field} />
-                    </div>
+                    <TimePicker 
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="09:00"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -144,10 +146,11 @@ export function ShiftTemplateForm({
                 <FormItem>
                   <FormLabel>End Time</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input className="pl-9" placeholder="17:00" {...field} />
-                    </div>
+                    <TimePicker 
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="17:00"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
