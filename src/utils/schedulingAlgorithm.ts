@@ -1,6 +1,6 @@
 
 import { Employee, Shift, ShiftTemplate } from "@/types";
-import { differenceInMinutes, addDays, parseISO, format } from "date-fns";
+import { differenceInMinutes, addDays, parseISO, format, differenceInHours } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 
 // Calculate duration of a shift in hours
@@ -18,7 +18,7 @@ const hasConflict = (employee: Employee, shift: Shift, assignedShifts: Shift[]):
     const existingStart = new Date(existingShift.startTime).getTime();
     const existingEnd = new Date(existingShift.endTime).getTime();
     
-    // Check for overlap
+    // Check for time overlap
     if (
       (newStart >= existingStart && newStart < existingEnd) || 
       (newEnd > existingStart && newEnd <= existingEnd) ||
@@ -26,13 +26,32 @@ const hasConflict = (employee: Employee, shift: Shift, assignedShifts: Shift[]):
     ) {
       return true;
     }
+    
+    // Check for required rest period between shifts
+    const restHoursRequired = employee.restHoursBetweenShifts || 0;
+    
+    // If the new shift starts after the existing shift
+    if (newStart > existingEnd) {
+      const hoursBetween = differenceInHours(new Date(newStart), new Date(existingEnd));
+      if (hoursBetween < restHoursRequired) {
+        return true;
+      }
+    }
+    
+    // If the new shift ends before the existing shift starts
+    if (newEnd < existingStart) {
+      const hoursBetween = differenceInHours(new Date(existingStart), new Date(newEnd));
+      if (hoursBetween < restHoursRequired) {
+        return true;
+      }
+    }
   }
   
   return false;
 };
 
 // Calculate total assigned hours for an employee
-const calculateAssignedHours = (employee: Employee, allShifts: Shift[]): number => {
+export const calculateAssignedHours = (employee: Employee, allShifts: Shift[]): number => {
   return allShifts
     .filter(s => s.employeeId === employee.id)
     .reduce((total, shift) => total + getShiftDuration(shift), 0);
@@ -84,13 +103,16 @@ const scoreEmployeeForShift = (
   
   // Overallocation penalty
   const overallocationPenalty = isOverallocated(employee, shift, allShifts) ? -5 : 0;
+
+  // Add some randomness to distribute free days more evenly
+  const randomFactor = Math.random() * 0.5;
   
   if (mode === "balanced") {
     // Prioritize balancing hours
-    return hoursDifference + (relativeWorkloadScore * 0.5) + positionMatchScore + overallocationPenalty;
+    return hoursDifference + (relativeWorkloadScore * 0.5) + positionMatchScore + overallocationPenalty + randomFactor;
   } else {
     // Prioritize position matching
-    return positionMatchScore * 2 + hoursDifference + (relativeWorkloadScore * 0.2) + overallocationPenalty;
+    return positionMatchScore * 2 + hoursDifference + (relativeWorkloadScore * 0.2) + overallocationPenalty + randomFactor;
   }
 };
 
@@ -155,7 +177,7 @@ export const createShiftsFromTemplates = (
   templates: ShiftTemplate[],
   startDate: Date,
   endDate: Date,
-  skipWeekends: boolean = true
+  skipWeekends: boolean = false // Changed default to false for more flexibility
 ): Shift[] => {
   const shifts: Shift[] = [];
   let currentDate = new Date(startDate);

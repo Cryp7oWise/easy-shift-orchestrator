@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -29,6 +30,10 @@ const employeeSchema = z.object({
     .min(1, "Weeks must be at least 1")
     .max(52, "Weeks cannot exceed 52 (weeks in a year)")
     .default(1),
+  restHoursBetweenShifts: z.coerce
+    .number()
+    .min(0, "Rest hours cannot be negative")
+    .default(8),
   color: z.string(),
 });
 
@@ -64,6 +69,7 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
           position: "",
           hoursPerWeek: 40,
           weeksPerPeriod: 1,
+          restHoursBetweenShifts: 8,
           color: COLORS[0],
         },
   });
@@ -76,6 +82,7 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
         position: data.position,
         hoursPerWeek: data.hoursPerWeek,
         weeksPerPeriod: data.weeksPerPeriod,
+        restHoursBetweenShifts: data.restHoursBetweenShifts,
         color: selectedColor,
       };
       
@@ -182,6 +189,23 @@ export function EmployeeForm({ employee, onSubmit, onCancel }: EmployeeFormProps
               )}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="restHoursBetweenShifts"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Rest Hours Between Shifts</FormLabel>
+                <FormControl>
+                  <Input type="number" min={0} {...field} />
+                </FormControl>
+                <FormDescription>
+                  Minimum hours required between shifts
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           
           <div>
             <FormLabel>Color</FormLabel>

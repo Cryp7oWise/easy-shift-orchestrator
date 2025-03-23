@@ -1,3 +1,4 @@
+
 export interface Employee {
   id: string;
   name: string;
@@ -6,6 +7,7 @@ export interface Employee {
   hoursPerWeek: number; // No limit on hours
   weeksPerPeriod: number;
   color: string;
+  restHoursBetweenShifts: number; // Hours needed between shifts
 }
 
 export interface Shift {

@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { 
   startOfWeek, 
@@ -39,6 +40,7 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Edit, Trash2, UserCheck } from "lucide-react";
 import { Employee, Shift } from "@/types";
+import { EmployeeHoursPanel } from "./EmployeeHoursPanel";
 
 const HOUR_HEIGHT = 80; // pixels per hour
 const DAY_START_HOUR = 6; // 6am
@@ -48,8 +50,8 @@ const HOURS_DISPLAYED = DAY_END_HOUR - DAY_START_HOUR;
 interface ShiftCalendarProps {
   shifts: Shift[];
   employees: Employee[];
-  currentDate: Date; // Added this prop
-  view: "week" | "month"; // Added this prop
+  currentDate: Date;
+  view: "week" | "month";
   onEditShift: (shift: Shift) => void;
   onDeleteShift: (id: string) => void;
   onAddShift: (date: Date) => void;
@@ -178,9 +180,9 @@ export function ShiftCalendar({
     setDragging(null);
   };
 
-  // Format time for display
+  // Format time for display - now using 24h format
   const formatTime = (date: Date) => {
-    return format(date, "h:mm a");
+    return format(date, "HH:mm");
   };
 
   // Calculate shift position
@@ -245,7 +247,7 @@ export function ShiftCalendar({
               style={{ height: `${HOUR_HEIGHT}px` }}
             >
               <span className="absolute -top-3 right-2">
-                {hour === 12 ? "12 PM" : hour < 12 ? `${hour} AM` : `${hour - 12} PM`}
+                {hour}:00
               </span>
             </div>
           ))}
@@ -375,7 +377,7 @@ export function ShiftCalendar({
     );
   };
 
-  // Render month view (basic implementation)
+  // Render month view
   const renderMonthView = () => {
     // Calculate number of weeks to display
     const numWeeks = Math.ceil(weekDays.length / 7);
@@ -459,14 +461,22 @@ export function ShiftCalendar({
   };
 
   return (
-    <Card className="w-full shadow-sm">
-      <CardContent className="pt-6">
-        <div className="overflow-x-auto">
-          <div className={view === "week" ? "min-w-[768px]" : ""}>
-            {view === "week" ? renderWeekView() : renderMonthView()}
+    <div className="flex flex-col md:flex-row gap-4">
+      {/* Employee Hours Panel - on the left side */}
+      <div className="md:w-1/4 w-full">
+        <EmployeeHoursPanel employees={employees} shifts={shifts} />
+      </div>
+      
+      {/* Calendar */}
+      <Card className="w-full md:w-3/4 shadow-sm">
+        <CardContent className="pt-6">
+          <div className="overflow-x-auto">
+            <div className={view === "week" ? "min-w-[768px]" : ""}>
+              {view === "week" ? renderWeekView() : renderMonthView()}
+            </div>
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      </Card>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -487,7 +497,6 @@ export function ShiftCalendar({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </div>
   );
 }
-

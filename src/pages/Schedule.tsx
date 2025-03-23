@@ -75,16 +75,23 @@ const Schedule = () => {
   };
 
   const handleUseTemplates = (templates: ShiftTemplate[]) => {
-    // Calculate date range (1 month from current date)
+    // Calculate date range based on the longest employee period
+    const maxWeeks = employees.length > 0 
+      ? Math.max(...employees.map(e => e.weeksPerPeriod || 1))
+      : 4;
+    
+    // Default to 4 weeks if no employees
+    const periodWeeks = maxWeeks > 0 ? maxWeeks : 4;
+    
     const startDate = new Date(currentDate);
-    const endDate = addMonths(currentDate, 1);
+    const endDate = addWeeks(currentDate, periodWeeks);
     
     // Create shifts from templates
-    const newShifts = createShiftsFromTemplates(templates, startDate, endDate);
+    const newShifts = createShiftsFromTemplates(templates, startDate, endDate, false);
     
     if (newShifts.length > 0) {
       setShifts([...shifts, ...newShifts]);
-      toast.success(`Created ${newShifts.length} shifts from templates`);
+      toast.success(`Created ${newShifts.length} shifts for ${periodWeeks} week period`);
     } else {
       toast.error("No shifts were created");
     }
