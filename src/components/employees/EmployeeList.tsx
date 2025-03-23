@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -36,7 +37,7 @@ export function EmployeeList({
           <div>
             <CardTitle className="text-2xl">Employees</CardTitle>
             <CardDescription>
-              Manage your team and their weekly hour targets
+              Manage your team and their hour targets
             </CardDescription>
           </div>
           <Button onClick={onAddEmployee} size="sm" className="gap-1">
@@ -85,6 +86,9 @@ interface EmployeeCardProps {
 }
 
 function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
+  // Calculate assigned workdays for this employee
+  const workDaysText = employee.workDaysCount ? ` (${employee.workDaysCount} days)` : '';
+  
   return (
     <div 
       className="card-glass rounded-xl p-4 transition-all duration-300 hover:shadow-md flex flex-col justify-between gap-3"
@@ -128,7 +132,9 @@ function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
         </div>
         <div className="flex items-center text-sm gap-2">
           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">{employee.hoursPerWeek} hours</span>
+          <span className="text-muted-foreground">
+            {employee.hoursPerWeek} hours{workDaysText}
+          </span>
         </div>
       </div>
     </div>

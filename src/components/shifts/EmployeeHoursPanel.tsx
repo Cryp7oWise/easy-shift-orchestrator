@@ -27,6 +27,13 @@ export function EmployeeHoursPanel({ employees, shifts }: EmployeeHoursPanelProp
             const remainingHours = Math.max(0, targetHours - assignedHours);
             const progressPercentage = Math.min(100, (assignedHours / targetHours) * 100);
             
+            // Count assigned workdays for this employee
+            const assignedWorkDays = new Set(
+              shifts
+                .filter(shift => shift.employeeId === employee.id)
+                .map(shift => new Date(shift.startTime).toDateString())
+            ).size;
+            
             return (
               <div key={employee.id} className="pb-3 border-b border-border/30 last:border-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -34,7 +41,9 @@ export function EmployeeHoursPanel({ employees, shifts }: EmployeeHoursPanelProp
                     className="h-3 w-3 rounded-full shrink-0"
                     style={{ backgroundColor: employee.color }} 
                   />
-                  <span className="font-medium text-sm truncate">{employee.name}</span>
+                  <span className="font-medium text-sm truncate">
+                    {employee.name} {assignedWorkDays > 0 && `(${assignedWorkDays} days)`}
+                  </span>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-2 text-xs mb-1.5 text-muted-foreground">

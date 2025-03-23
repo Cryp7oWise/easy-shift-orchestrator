@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Employee, Shift } from "@/types";
 import { TimePicker } from "@/components/ui/time-picker";
+import { Slider } from "@/components/ui/slider";
 
 const shiftSchema = z.object({
   employeeId: z.string().nullable(),
@@ -45,6 +46,7 @@ const shiftSchema = z.object({
       message: "Must be in format HH:MM"
     }),
   position: z.string().min(1, "Position is required"),
+  breakDurationMinutes: z.number().min(0).max(120),
 });
 
 interface ShiftFormProps {
@@ -67,6 +69,7 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
       startHour: defaultStartHour,
       endHour: defaultEndHour,
       position: shift?.position || "",
+      breakDurationMinutes: shift?.breakDurationMinutes || 0,
     },
   });
 
@@ -92,6 +95,7 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
         startTime,
         endTime,
         position: data.position,
+        breakDurationMinutes: data.breakDurationMinutes,
       });
 
       form.reset();
@@ -231,6 +235,26 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
           
           <FormField
             control={form.control}
+            name="breakDurationMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Break Duration: {field.value} minutes</FormLabel>
+                <FormControl>
+                  <Slider
+                    value={[field.value]}
+                    min={0}
+                    max={120}
+                    step={5}
+                    onValueChange={(value) => field.onChange(value[0])}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
             name="employeeId"
             render={({ field }) => (
               <FormItem>
@@ -246,11 +270,14 @@ export function ShiftForm({ shift, employees, onSubmit, onCancel }: ShiftFormPro
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name} ({employee.position})
-                      </SelectItem>
-                    ))}
+                    {employees.map((employee) => {
+                      const workDaysText = employee.workDaysCount ? ` (${employee.workDaysCount} days)` : '';
+                      return (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {employee.name} ({employee.position}){workDaysText}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <FormMessage />

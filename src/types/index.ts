@@ -8,6 +8,7 @@ export interface Employee {
   weeksPerPeriod: number;
   color: string;
   restHoursBetweenShifts: number; // Hours needed between shifts
+  workDaysCount?: number; // Track number of days worked
 }
 
 export interface Shift {
@@ -16,6 +17,7 @@ export interface Shift {
   startTime: Date;
   endTime: Date;
   position: string;
+  breakDurationMinutes?: number; // Break duration in minutes
 }
 
 export interface ShiftTemplate {

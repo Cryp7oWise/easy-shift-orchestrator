@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { toast } from "sonner";
@@ -20,9 +20,10 @@ import { ShiftCalendar } from "@/components/shifts/ShiftCalendar";
 import { AutoScheduler } from "@/components/shifts/AutoScheduler";
 import { CalendarHeader } from "@/components/shifts/CalendarHeader";
 import { Employee, Shift, ShiftTemplate } from "@/types";
-import { Plus, CalendarX } from "lucide-react";
+import { Plus, CalendarX, Printer, Table } from "lucide-react";
 import { createShiftsFromTemplates } from "@/utils/schedulingAlgorithm";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
+import { Link } from "react-router-dom";
 
 const Schedule = () => {
   const [employees] = useLocalStorage<Employee[]>("smartplan-employees", []);
@@ -33,6 +34,41 @@ const Schedule = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<"week" | "month">("month");
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  
+  // Reference for printing
+  const printComponentRef = useRef(null);
+
+  // Update employee workdays count
+  useEffect(() => {
+    // Count workdays for each employee
+    const employeesWorkDays = new Map<string, number>();
+    
+    shifts.forEach(shift => {
+      if (shift.employeeId) {
+        const workDate = new Date(shift.startTime).toDateString();
+        const key = `${shift.employeeId}-${workDate}`;
+        
+        if (!employeesWorkDays.has(shift.employeeId)) {
+          employeesWorkDays.set(shift.employeeId, new Set([workDate]).size);
+        } else {
+          const currentDays = employeesWorkDays.get(shift.employeeId)!;
+          const daysSet = new Set([...Array.from(employeesWorkDays.keys())
+            .filter(k => k.startsWith(`${shift.employeeId}-`))
+            .map(k => k.split('-')[1]), workDate]);
+          employeesWorkDays.set(shift.employeeId, daysSet.size);
+        }
+      }
+    });
+    
+    // Update employee workday counts in localStorage
+    const updatedEmployees = employees.map(employee => ({
+      ...employee,
+      workDaysCount: employeesWorkDays.get(employee.id) || 0
+    }));
+    
+    localStorage.setItem('smartplan-employees', JSON.stringify(updatedEmployees));
+  }, [shifts, employees]);
 
   const handleAddShift = (date?: Date) => {
     setEditingShift(undefined);
@@ -55,6 +91,10 @@ const Schedule = () => {
     setClearDialogOpen(true);
   };
 
+  const handleDeleteAllShifts = () => {
+    setDeleteAllDialogOpen(true);
+  };
+
   const confirmClearAllShifts = () => {
     // Only clear assigned shifts (employeeId is not null)
     const unassignedShifts = shifts.map(shift => ({
@@ -64,6 +104,13 @@ const Schedule = () => {
     setShifts(unassignedShifts);
     setClearDialogOpen(false);
     toast.success("All shift assignments cleared");
+  };
+
+  const confirmDeleteAllShifts = () => {
+    // Delete all shifts
+    setShifts([]);
+    setDeleteAllDialogOpen(false);
+    toast.success("All shifts deleted");
   };
 
   const handleAssignEmployee = (shift: Shift, employeeId: string) => {
@@ -144,6 +191,12 @@ const Schedule = () => {
     setCurrentDate(new Date());
   };
 
+  const handlePrint = () => {
+    if (window) {
+      window.print();
+    }
+  };
+
   return (
     <div className="py-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -167,6 +220,32 @@ const Schedule = () => {
             <CalendarX className="h-4 w-4" />
             Clear Assignments
           </Button>
+          <Button 
+            variant="outline"
+            onClick={handleDeleteAllShifts} 
+            className="gap-2 hidden sm:flex"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete All Shifts
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handlePrint} 
+            className="gap-2 hidden sm:flex"
+          >
+            <Printer className="h-4 w-4" />
+            Print Schedule
+          </Button>
+          <Button 
+            variant="outline"
+            asChild
+            className="gap-2 hidden sm:flex"
+          >
+            <Link to="/weekly-view">
+              <Table className="h-4 w-4" />
+              Weekly View
+            </Link>
+          </Button>
         </div>
       </div>
       
@@ -181,7 +260,7 @@ const Schedule = () => {
           }}
         />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8" ref={printComponentRef}>
           <Tabs defaultValue="calendar" className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="calendar">Calendar View</TabsTrigger>
@@ -267,6 +346,47 @@ const Schedule = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Shifts</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete all shifts from the schedule. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteAllShifts}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Print-specific styles */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printComponentRef, #printComponentRef * {
+            visibility: visible;
+          }
+          #printComponentRef {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
