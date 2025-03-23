@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isSameDay, isToday, set } from "date-fns";
@@ -207,7 +206,8 @@ const WeeklyView = () => {
       </div>
       
       {/* Print specific styles */}
-      <style jsx global>{`
+      <style>
+      {`
         @media print {
           @page { size: landscape; }
           body * {
@@ -226,7 +226,8 @@ const WeeklyView = () => {
             display: none !important;
           }
         }
-      `}</style>
+      `}
+      </style>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useLocalStorage } from "@/hooks/use-local-storage";
@@ -20,7 +19,7 @@ import { ShiftCalendar } from "@/components/shifts/ShiftCalendar";
 import { AutoScheduler } from "@/components/shifts/AutoScheduler";
 import { CalendarHeader } from "@/components/shifts/CalendarHeader";
 import { Employee, Shift, ShiftTemplate } from "@/types";
-import { Plus, CalendarX, Printer, Table } from "lucide-react";
+import { Plus, CalendarX, Printer, Table, Trash2 } from "lucide-react";
 import { createShiftsFromTemplates } from "@/utils/schedulingAlgorithm";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { Link } from "react-router-dom";
@@ -36,12 +35,9 @@ const Schedule = () => {
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   
-  // Reference for printing
   const printComponentRef = useRef(null);
 
-  // Update employee workdays count
   useEffect(() => {
-    // Count workdays for each employee
     const employeesWorkDays = new Map<string, number>();
     
     shifts.forEach(shift => {
@@ -61,7 +57,6 @@ const Schedule = () => {
       }
     });
     
-    // Update employee workday counts in localStorage
     const updatedEmployees = employees.map(employee => ({
       ...employee,
       workDaysCount: employeesWorkDays.get(employee.id) || 0
@@ -96,7 +91,6 @@ const Schedule = () => {
   };
 
   const confirmClearAllShifts = () => {
-    // Only clear assigned shifts (employeeId is not null)
     const unassignedShifts = shifts.map(shift => ({
       ...shift,
       employeeId: null
@@ -107,7 +101,6 @@ const Schedule = () => {
   };
 
   const confirmDeleteAllShifts = () => {
-    // Delete all shifts
     setShifts([]);
     setDeleteAllDialogOpen(false);
     toast.success("All shifts deleted");
@@ -123,14 +116,12 @@ const Schedule = () => {
 
   const handleSubmitShift = (data: Omit<Shift, "id">) => {
     if (editingShift) {
-      // Update existing shift
       const updatedShifts = shifts.map(s => 
         s.id === editingShift.id ? { ...s, ...data } : s
       );
       setShifts(updatedShifts);
       toast.success("Shift updated successfully");
     } else {
-      // Add new shift
       const newShift: Shift = {
         id: uuidv4(),
         ...data
@@ -148,18 +139,15 @@ const Schedule = () => {
   };
 
   const handleUseTemplates = (templates: ShiftTemplate[]) => {
-    // Calculate date range based on the longest employee period
     const maxWeeks = employees.length > 0 
       ? Math.max(...employees.map(e => e.weeksPerPeriod || 1))
       : 4;
     
-    // Default to 4 weeks if no employees
     const periodWeeks = maxWeeks > 0 ? maxWeeks : 4;
     
     const startDate = new Date(currentDate);
     const endDate = addWeeks(currentDate, periodWeeks);
     
-    // Create shifts from templates
     const newShifts = createShiftsFromTemplates(templates, startDate, endDate, false);
     
     if (newShifts.length > 0) {
@@ -170,7 +158,6 @@ const Schedule = () => {
     }
   };
 
-  // Calendar navigation
   const handlePrevious = () => {
     if (calendarView === "week") {
       setCurrentDate(subWeeks(currentDate, 1));
@@ -289,11 +276,9 @@ const Schedule = () => {
                 onMoveShift={(shiftId, newDate) => {
                   const shiftToMove = shifts.find(s => s.id === shiftId);
                   if (shiftToMove) {
-                    // Calculate the time difference between old and new date
                     const oldDate = new Date(shiftToMove.startTime);
                     const timeDiff = newDate.getTime() - oldDate.getTime();
                     
-                    // Apply the same time difference to both start and end times
                     const newStartTime = new Date(shiftToMove.startTime.getTime() + timeDiff);
                     const newEndTime = new Date(shiftToMove.endTime.getTime() + timeDiff);
                     
@@ -367,9 +352,10 @@ const Schedule = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Print-specific styles */}
-      <style jsx global>{`
+      <style>
+      {`
         @media print {
+          @page { size: landscape; }
           body * {
             visibility: hidden;
           }
@@ -386,9 +372,11 @@ const Schedule = () => {
             display: none !important;
           }
         }
-      `}</style>
+      `}
+      </style>
     </div>
   );
 };
 
 export default Schedule;
+

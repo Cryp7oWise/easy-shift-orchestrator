@@ -6,7 +6,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import Layout from "./components/layout/Layout";
+import { Layout } from "./components/layout/Layout";
 import Index from "./pages/Index";
 import Schedule from "./pages/Schedule";
 import Employees from "./pages/Employees";

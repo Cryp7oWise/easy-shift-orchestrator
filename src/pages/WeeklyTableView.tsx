@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { 
@@ -19,7 +18,7 @@ import { Employee, Shift } from "@/types";
 import { ChevronLeft, ChevronRight, Printer, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { WeeklyTableView } from "@/components/schedule/WeeklyTableView";
+import { WeeklyTableView as WeeklyTableViewComponent } from "@/components/schedule/WeeklyTableView";
 
 const WeeklyView = () => {
   const [employees] = useLocalStorage<Employee[]>("smartplan-employees", []);
@@ -136,7 +135,7 @@ const WeeklyView = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <WeeklyTableView 
+                  <WeeklyTableViewComponent 
                     shifts={shifts}
                     employees={employees}
                     currentDate={currentDate}
@@ -152,7 +151,7 @@ const WeeklyView = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <WeeklyTableView 
+                  <WeeklyTableViewComponent 
                     shifts={shifts}
                     employees={employees}
                     currentDate={addWeeks(currentDate, 1)}
@@ -166,7 +165,8 @@ const WeeklyView = () => {
       </div>
       
       {/* Print specific styles */}
-      <style jsx global>{`
+      <style>
+      {`
         @media print {
           @page { size: landscape; }
           body * {
@@ -183,9 +183,11 @@ const WeeklyView = () => {
             display: none !important;
           }
         }
-      `}</style>
+      `}
+      </style>
     </div>
   );
 };
 
 export default WeeklyView;
+
