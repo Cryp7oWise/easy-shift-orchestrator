@@ -1,6 +1,15 @@
 
 import { Employee, Shift, ShiftTemplate } from "@/types";
-import { differenceInMinutes, addDays, parseISO, format, differenceInHours } from "date-fns";
+import { 
+  differenceInMinutes, 
+  addDays, 
+  parseISO, 
+  format, 
+  differenceInHours,
+  isSameDay,
+  startOfDay,
+  addWeeks
+} from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 
 // Calculate duration of a shift in hours
@@ -61,12 +70,38 @@ export const calculateAssignedHours = (employee: Employee, allShifts: Shift[]): 
 const isOverallocated = (employee: Employee, shift: Shift, allShifts: Shift[]): boolean => {
   const currentHours = calculateAssignedHours(employee, allShifts);
   const shiftHours = getShiftDuration(shift);
-  const weeklyLimit = employee.hoursPerWeek;
+  const totalLimit = employee.hoursPerWeek * (employee.weeksPerPeriod || 1);
   
-  // Adjust limit based on weeks per period
-  const adjustedLimit = weeklyLimit * (employee.weeksPerPeriod || 1);
+  return (currentHours + shiftHours) > totalLimit;
+};
+
+// Count the number of consecutive working days
+const countConsecutiveWorkingDays = (employee: Employee, shift: Shift, assignedShifts: Shift[]): number => {
+  const employeeShifts = assignedShifts.filter(s => s.employeeId === employee.id);
+  const shiftDate = startOfDay(new Date(shift.startTime));
   
-  return (currentHours + shiftHours) > adjustedLimit;
+  // Check how many days before the current shift the employee has worked
+  let consecutiveDays = 0;
+  let currentDate = shiftDate;
+  
+  // Check up to 7 days before
+  for (let i = 1; i <= 7; i++) {
+    const checkDate = addDays(currentDate, -i);
+    
+    // Check if there's a shift on this day
+    const hasShiftOnDay = employeeShifts.some(s => 
+      isSameDay(new Date(s.startTime), checkDate)
+    );
+    
+    if (hasShiftOnDay) {
+      consecutiveDays++;
+    } else {
+      // Break on the first day without a shift
+      break;
+    }
+  }
+  
+  return consecutiveDays + 1; // +1 for the current shift day
 };
 
 // Score an employee for a shift (higher is better)
@@ -86,14 +121,14 @@ const scoreEmployeeForShift = (
   const assignedHours = calculateAssignedHours(employee, allShifts);
   
   // Calculate how many hours the employee is above/below their target
-  // Adjust the target based on weeks per period
-  const adjustedTarget = employee.hoursPerWeek * (employee.weeksPerPeriod || 1);
-  const hoursDifference = adjustedTarget - assignedHours;
+  const totalTarget = employee.hoursPerWeek * employee.weeksPerPeriod;
+  const hoursDifference = totalTarget - assignedHours;
   
   // Position match score (3 points if positions match exactly)
   const positionMatchScore = employee.position === shift.position ? 3 : 0;
   
   // Relative workload score (how much more/less this employee works compared to others)
+  // Normalize by the weeks per period to make comparison fair
   const avgHoursPerEmployee = allEmployees.reduce(
     (sum, emp) => sum + (calculateAssignedHours(emp, allShifts) / (emp.weeksPerPeriod || 1)), 
     0
@@ -103,16 +138,20 @@ const scoreEmployeeForShift = (
   
   // Overallocation penalty
   const overallocationPenalty = isOverallocated(employee, shift, allShifts) ? -5 : 0;
+  
+  // Consecutive working days penalty (encourage days off)
+  const consecutiveDays = countConsecutiveWorkingDays(employee, shift, allShifts);
+  const consecutiveDaysPenalty = consecutiveDays > 5 ? -(consecutiveDays - 5) * 2 : 0;
 
-  // Add some randomness to distribute free days more evenly
-  const randomFactor = Math.random() * 0.5;
+  // Add some randomness to distribute shifts more evenly and avoid predictable patterns
+  const randomFactor = Math.random() * 0.8;
   
   if (mode === "balanced") {
     // Prioritize balancing hours
-    return hoursDifference + (relativeWorkloadScore * 0.5) + positionMatchScore + overallocationPenalty + randomFactor;
+    return hoursDifference + (relativeWorkloadScore * 0.8) + positionMatchScore + overallocationPenalty + consecutiveDaysPenalty + randomFactor;
   } else {
     // Prioritize position matching
-    return positionMatchScore * 2 + hoursDifference + (relativeWorkloadScore * 0.2) + overallocationPenalty + randomFactor;
+    return positionMatchScore * 2 + hoursDifference + (relativeWorkloadScore * 0.3) + overallocationPenalty + consecutiveDaysPenalty + randomFactor;
   }
 };
 
@@ -177,7 +216,7 @@ export const createShiftsFromTemplates = (
   templates: ShiftTemplate[],
   startDate: Date,
   endDate: Date,
-  skipWeekends: boolean = false // Changed default to false for more flexibility
+  skipWeekends: boolean = false
 ): Shift[] => {
   const shifts: Shift[] = [];
   let currentDate = new Date(startDate);

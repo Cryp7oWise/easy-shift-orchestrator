@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShiftTemplates } from "./ShiftTemplates";
-import { AlertCircle, Wand2 } from "lucide-react";
+import { AlertCircle, RefreshCw, Wand2 } from "lucide-react";
 import { Employee, Shift, ShiftTemplate } from "@/types";
 import { autoScheduleShifts } from "@/utils/schedulingAlgorithm";
 
@@ -73,6 +74,53 @@ export function AutoScheduler({
       
       onAutoSchedule(assignedShifts);
       toast.success(`Successfully auto-scheduled ${unassignedShifts.length} shifts`);
+    } catch (error) {
+      console.error("Auto-scheduling error:", error);
+      toast.error("Failed to auto-schedule shifts");
+    } finally {
+      setScheduling(false);
+    }
+  };
+  
+  const handleRerunAutoSchedule = async () => {
+    if (employees.length === 0) {
+      toast.error("No employees available for scheduling");
+      return;
+    }
+    
+    setScheduling(true);
+    
+    try {
+      // Small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Clear all existing assignments first
+      const clearedShifts = shifts.map(shift => ({
+        ...shift,
+        employeeId: null
+      }));
+      
+      // Then re-run the auto-scheduler
+      const assignedShifts = autoScheduleShifts(
+        clearedShifts, 
+        employees, 
+        schedulingMode
+      );
+      
+      // Check for overallocated employees
+      const overallocated = checkOverallocatedEmployees(assignedShifts, employees);
+      setOverallocatedEmployees(overallocated);
+      
+      if (overallocated.length > 0) {
+        const names = overallocated.map(id => 
+          employees.find(e => e.id === id)?.name || 'Unknown'
+        ).join(', ');
+        
+        toast.warning(`Warning: Some employees are scheduled for more hours than their limit: ${names}`);
+      }
+      
+      onAutoSchedule(assignedShifts);
+      toast.success(`Successfully re-scheduled all shifts`);
     } catch (error) {
       console.error("Auto-scheduling error:", error);
       toast.error("Failed to auto-schedule shifts");
@@ -155,7 +203,7 @@ export function AutoScheduler({
                 <div>
                   <p className="font-medium text-destructive">Warning: Hour limit exceeded</p>
                   <p className="text-muted-foreground mt-1">
-                    Some employees are scheduled for more hours than their weekly limit.
+                    Some employees are scheduled for more hours than their total limit.
                     Review their schedules and make adjustments as needed.
                   </p>
                   <ul className="mt-2 list-disc list-inside">
@@ -164,7 +212,7 @@ export function AutoScheduler({
                       if (!employee) return null;
                       return (
                         <li key={id}>
-                          {employee.name} (Limit: {employee.hoursPerWeek} hours/week over {employee.weeksPerPeriod} {employee.weeksPerPeriod === 1 ? 'week' : 'weeks'})
+                          {employee.name} (Limit: {employee.hoursPerWeek} hours over {employee.weeksPerPeriod} {employee.weeksPerPeriod === 1 ? 'week' : 'weeks'})
                         </li>
                       );
                     })}
@@ -173,29 +221,54 @@ export function AutoScheduler({
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between mb-4 p-4 bg-muted/50 rounded-lg">
-              <div>
-                <div className="text-sm mb-1">
-                  <span className="font-medium">{unassignedShifts.length}</span> unassigned shifts
-                </div>
-                <div className="text-sm mb-1">
-                  <span className="font-medium">{employees.length}</span> available employees
-                </div>
-                {unassignedShifts.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    Estimated processing time: ~{estimatedTime < 1 ? "< 1" : Math.ceil(estimatedTime)} seconds
+            <div className="flex flex-col gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <div className="text-sm mb-1">
+                    <span className="font-medium">{unassignedShifts.length}</span> unassigned shifts
                   </div>
-                )}
+                  <div className="text-sm mb-1">
+                    <span className="font-medium">{employees.length}</span> available employees
+                  </div>
+                  {unassignedShifts.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      Estimated processing time: ~{estimatedTime < 1 ? "< 1" : Math.ceil(estimatedTime)} seconds
+                    </div>
+                  )}
+                </div>
+                
+                <Button 
+                  onClick={handleAutoSchedule} 
+                  disabled={scheduling || unassignedShifts.length === 0 || employees.length === 0}
+                  className="gap-2"
+                >
+                  <Wand2 className="h-4 w-4" />
+                  {scheduling ? "Scheduling..." : "Auto-Schedule"}
+                </Button>
               </div>
-              
-              <Button 
-                onClick={handleAutoSchedule} 
-                disabled={scheduling || unassignedShifts.length === 0 || employees.length === 0}
-                className="gap-2"
-              >
-                <Wand2 className="h-4 w-4" />
-                {scheduling ? "Scheduling..." : "Auto-Schedule"}
-              </Button>
+
+              {assignedShifts.length > 0 && (
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <div className="text-sm mb-1">
+                      <span className="font-medium">{assignedShifts.length}</span> assigned shifts
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Clear and re-assign all shifts to generate a completely new schedule
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleRerunAutoSchedule} 
+                    disabled={scheduling || employees.length === 0}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {scheduling ? "Scheduling..." : "Re-schedule All"}
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

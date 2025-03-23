@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -129,7 +128,7 @@ function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
         </div>
         <div className="flex items-center text-sm gap-2">
           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">{employee.hoursPerWeek} hours/week</span>
+          <span className="text-muted-foreground">{employee.hoursPerWeek} hours</span>
         </div>
       </div>
     </div>

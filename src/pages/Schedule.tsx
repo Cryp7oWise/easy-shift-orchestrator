@@ -5,12 +5,22 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ShiftForm } from "@/components/shifts/ShiftForm";
 import { ShiftCalendar } from "@/components/shifts/ShiftCalendar";
 import { AutoScheduler } from "@/components/shifts/AutoScheduler";
 import { CalendarHeader } from "@/components/shifts/CalendarHeader";
 import { Employee, Shift, ShiftTemplate } from "@/types";
-import { Plus } from "lucide-react";
+import { Plus, CalendarX } from "lucide-react";
 import { createShiftsFromTemplates } from "@/utils/schedulingAlgorithm";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
@@ -21,7 +31,8 @@ const Schedule = () => {
   const [editingShift, setEditingShift] = useState<Shift | undefined>(undefined);
   const [initialDate, setInitialDate] = useState<Date>(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarView, setCalendarView] = useState<"week" | "month">("week");
+  const [calendarView, setCalendarView] = useState<"week" | "month">("month");
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   const handleAddShift = (date?: Date) => {
     setEditingShift(undefined);
@@ -38,6 +49,21 @@ const Schedule = () => {
 
   const handleDeleteShift = (id: string) => {
     setShifts(shifts.filter(shift => shift.id !== id));
+  };
+
+  const handleClearAllShifts = () => {
+    setClearDialogOpen(true);
+  };
+
+  const confirmClearAllShifts = () => {
+    // Only clear assigned shifts (employeeId is not null)
+    const unassignedShifts = shifts.map(shift => ({
+      ...shift,
+      employeeId: null
+    }));
+    setShifts(unassignedShifts);
+    setClearDialogOpen(false);
+    toast.success("All shift assignments cleared");
   };
 
   const handleAssignEmployee = (shift: Shift, employeeId: string) => {
@@ -128,10 +154,20 @@ const Schedule = () => {
           </p>
         </div>
         
-        <Button onClick={() => handleAddShift()} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Shift
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => handleAddShift()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Shift
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleClearAllShifts} 
+            className="gap-2"
+          >
+            <CalendarX className="h-4 w-4" />
+            Clear Assignments
+          </Button>
+        </div>
       </div>
       
       {isFormOpen ? (
@@ -171,6 +207,31 @@ const Schedule = () => {
                 onDeleteShift={handleDeleteShift}
                 onAddShift={handleAddShift}
                 onAssignEmployee={handleAssignEmployee}
+                onMoveShift={(shiftId, newDate) => {
+                  const shiftToMove = shifts.find(s => s.id === shiftId);
+                  if (shiftToMove) {
+                    // Calculate the time difference between old and new date
+                    const oldDate = new Date(shiftToMove.startTime);
+                    const timeDiff = newDate.getTime() - oldDate.getTime();
+                    
+                    // Apply the same time difference to both start and end times
+                    const newStartTime = new Date(shiftToMove.startTime.getTime() + timeDiff);
+                    const newEndTime = new Date(shiftToMove.endTime.getTime() + timeDiff);
+                    
+                    const updatedShift = {
+                      ...shiftToMove,
+                      startTime: newStartTime,
+                      endTime: newEndTime
+                    };
+                    
+                    const updatedShifts = shifts.map(s => 
+                      s.id === shiftId ? updatedShift : s
+                    );
+                    
+                    setShifts(updatedShifts);
+                    toast.success("Shift moved successfully");
+                  }
+                }}
               />
             </TabsContent>
             
@@ -185,6 +246,27 @@ const Schedule = () => {
           </Tabs>
         </div>
       )}
+
+      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear All Shift Assignments</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all employee assignments from shifts. The shifts themselves will remain but will be unassigned.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmClearAllShifts}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Clear Assignments
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

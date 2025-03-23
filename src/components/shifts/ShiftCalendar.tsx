@@ -15,7 +15,8 @@ import {
   startOfMonth,
   endOfMonth,
   getDate,
-  isSameMonth
+  isSameMonth,
+  isSameDay
 } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Edit, Trash2, UserCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit, Trash2, UserCheck, CalendarRange, Move } from "lucide-react";
 import { Employee, Shift } from "@/types";
 import { EmployeeHoursPanel } from "./EmployeeHoursPanel";
 
@@ -56,6 +57,7 @@ interface ShiftCalendarProps {
   onDeleteShift: (id: string) => void;
   onAddShift: (date: Date) => void;
   onAssignEmployee: (shift: Shift, employeeId: string) => void;
+  onMoveShift: (shiftId: string, newDate: Date) => void;
 }
 
 type DragInfo = {
@@ -64,6 +66,8 @@ type DragInfo = {
   initialEndY: number;
   elementHeight: number;
   dayIndex: number;
+  initialDate: Date;
+  isDraggingAcrossDays: boolean;
 };
 
 export function ShiftCalendar({
@@ -75,11 +79,13 @@ export function ShiftCalendar({
   onDeleteShift,
   onAddShift,
   onAssignEmployee,
+  onMoveShift,
 }: ShiftCalendarProps) {
   const [weekDays, setWeekDays] = useState<Date[]>([]);
   const [dragging, setDragging] = useState<DragInfo | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
+  const [currentDragOverDay, setCurrentDragOverDay] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -102,11 +108,54 @@ export function ShiftCalendar({
   // Get hours for the day
   const hourLabels = Array.from({ length: HOURS_DISPLAYED + 1 }, (_, i) => i + DAY_START_HOUR);
 
-  // Handle drag start
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent, shiftId: string, dayIndex: number) => {
+  // Track mouse movement for drag and drop
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (dragging.isDraggingAcrossDays && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        // Find which day column the cursor is over
+        const dayWidth = containerRect.width / weekDays.length;
+        const relativeX = e.clientX - containerRect.left;
+        const dayIndex = Math.floor(relativeX / dayWidth);
+        
+        if (dayIndex >= 0 && dayIndex < weekDays.length) {
+          setCurrentDragOverDay(dayIndex);
+        }
+      }
+    };
+    
+    const handleMouseUp = (e: MouseEvent) => {
+      if (dragging && dragging.isDraggingAcrossDays) {
+        // Handle dropping on a different day
+        const shift = shifts.find(s => s.id === dragging.shiftId);
+        if (shift && currentDragOverDay !== null && currentDragOverDay !== dragging.dayIndex) {
+          const newDate = weekDays[currentDragOverDay];
+          onMoveShift(dragging.shiftId, newDate);
+        }
+      }
+      setDragging(null);
+      setCurrentDragOverDay(null);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragging, weekDays, currentDragOverDay, shifts, onMoveShift]);
+
+  // Handle drag start for both vertical repositioning and day-to-day dragging
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent, shiftId: string, dayIndex: number, isDraggingAcrossDays: boolean = false) => {
     if (containerRef.current) {
       const element = e.currentTarget as HTMLDivElement;
       const rect = element.getBoundingClientRect();
+      
+      const shift = shifts.find(s => s.id === shiftId);
+      if (!shift) return;
       
       setDragging({
         shiftId,
@@ -114,14 +163,23 @@ export function ShiftCalendar({
         initialEndY: rect.bottom,
         elementHeight: rect.height,
         dayIndex,
+        initialDate: new Date(shift.startTime),
+        isDraggingAcrossDays
       });
+      
+      if (isDraggingAcrossDays) {
+        setCurrentDragOverDay(dayIndex);
+      }
+      
+      // Prevent default to avoid text selection during drag
+      e.preventDefault();
     }
   };
 
-  // Handle drag end
+  // Handle drag end for vertical repositioning
   const handleDragEnd = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!dragging || !containerRef.current) {
-      setDragging(null);
+    if (!dragging || !containerRef.current || dragging.isDraggingAcrossDays) {
+      // If dragging across days, this is handled by the mouseup event listener
       return;
     }
 
@@ -180,7 +238,7 @@ export function ShiftCalendar({
     setDragging(null);
   };
 
-  // Format time for display - now using 24h format
+  // Format time in 24h format
   const formatTime = (date: Date) => {
     return format(date, "HH:mm");
   };
@@ -259,7 +317,8 @@ export function ShiftCalendar({
             key={dayIndex} 
             className={cn(
               "border-l relative",
-              isToday(day) && "bg-primary/5"
+              isToday(day) && "bg-primary/5",
+              currentDragOverDay === dayIndex && dragging?.isDraggingAcrossDays && "bg-primary/10"
             )}
             style={{ height: `${HOUR_HEIGHT * HOURS_DISPLAYED}px` }}
           >
@@ -307,6 +366,17 @@ export function ShiftCalendar({
                       {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
                     </div>
                     <div className="flex gap-1">
+                      {employee && (
+                        <button
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            handleDragStart(e, shift.id, dayIndex, true);
+                          }}
+                        >
+                          <Move className="h-3 w-3" />
+                        </button>
+                      )}
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -383,7 +453,7 @@ export function ShiftCalendar({
     const numWeeks = Math.ceil(weekDays.length / 7);
     
     return (
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1" ref={containerRef}>
         {/* Day headers */}
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
           <div key={i} className="text-center font-medium p-2 text-sm">
@@ -392,24 +462,24 @@ export function ShiftCalendar({
         ))}
         
         {/* Calendar cells */}
-        {weekDays.map((day, i) => {
+        {weekDays.map((day, dayIndex) => {
           // Get shifts for this day
           const dayShifts = shifts.filter(shift => {
             const shiftDate = new Date(shift.startTime);
-            return (
-              shiftDate.getDate() === day.getDate() &&
-              shiftDate.getMonth() === day.getMonth() &&
-              shiftDate.getFullYear() === day.getFullYear()
-            );
+            return isSameDay(shiftDate, day);
           });
+          
+          // Determine if this day is being dragged over
+          const isDragOver = currentDragOverDay === dayIndex && dragging?.isDraggingAcrossDays;
           
           return (
             <div 
-              key={i} 
+              key={dayIndex} 
               className={cn(
                 "min-h-[100px] border rounded-md p-1 relative",
                 !isSameMonth(day, currentDate) && "bg-muted/50",
-                isToday(day) && "bg-primary/5"
+                isToday(day) && "bg-primary/5",
+                isDragOver && "bg-primary/10 border-primary"
               )}
               onClick={() => onAddShift(day)}
             >
@@ -428,7 +498,7 @@ export function ShiftCalendar({
                     <div 
                       key={shift.id}
                       className={cn(
-                        "text-xs p-1 rounded border-l-2 cursor-pointer",
+                        "text-xs p-1 rounded border-l-2 cursor-pointer flex justify-between items-center",
                         employee ? "bg-white dark:bg-accent" : "bg-muted"
                       )}
                       style={{ borderLeftColor: employee?.color || "#99A1B2" }}
@@ -436,19 +506,59 @@ export function ShiftCalendar({
                         e.stopPropagation();
                         onEditShift(shift);
                       }}
+                      draggable={!!employee}
+                      onDragStart={(e) => {
+                        if (employee) {
+                          e.dataTransfer.setData("shiftId", shift.id);
+                          handleDragStart(e, shift.id, dayIndex, true);
+                        }
+                      }}
                     >
-                      <div className="font-medium truncate">
-                        {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                      <div className="truncate flex-1">
+                        <div className="font-medium truncate">
+                          {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                        </div>
+                        <div className="truncate">
+                          {employee ? employee.name : shift.position}
+                        </div>
                       </div>
-                      <div className="truncate">
-                        {employee ? employee.name : shift.position}
+                      <div className="flex gap-1 ml-1">
+                        {employee && (
+                          <button
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              handleDragStart(e, shift.id, dayIndex, true);
+                            }}
+                          >
+                            <Move className="h-3 w-3" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDeleteShift(shift.id);
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
                   );
                 })}
                 
                 {dayShifts.length > 3 && (
-                  <div className="text-xs text-center text-muted-foreground">
+                  <div 
+                    className="text-xs text-center text-muted-foreground p-1 bg-muted/50 rounded cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Switch to day view and center on this day
+                      if (view === "month") {
+                        onEditShift(dayShifts[3]);
+                      }
+                    }}
+                  >
                     +{dayShifts.length - 3} more
                   </div>
                 )}
